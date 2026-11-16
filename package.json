@@ -1,0 +1,35 @@
+{
+  "name": "fipe-pro",
+  "version": "1.0.0",
+  "description": "API e SDK Oficial de Tabela FIPE (Carros, Motos e Caminhões), Série Histórica de Preços, Depreciação, Decodificador de Chassi VIN ISO 3779 e IPVA das 27 UFs na Cloudflare Edge (<2ms).",
+  "type": "module",
+  "main": "fipe-pro.js",
+  "module": "fipe-pro.js",
+  "types": "types/index.d.ts",
+  "scripts": {
+    "test": "node test.js",
+    "deploy": "wrangler deploy",
+    "security:check": "node scripts/security-guard.js"
+  },
+  "keywords": [
+    "fipe",
+    "veiculos",
+    "carros",
+    "motos",
+    "caminhoes",
+    "ipva",
+    "placas",
+    "chassi-vin",
+    "depreciacao",
+    "tco",
+    "cloudflare-worker",
+    "anycast",
+    "sdk"
+  ],
+  "author": "clepta2 <clepta2@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clepta2/fipe-pro.git"
+  }
+}

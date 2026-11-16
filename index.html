@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FIPE Pro Studio • Tabela FIPE Oficial, Depreciação &amp; IPVA • Ponte API</title>
+  <link rel="stylesheet" href="ponte-suite.css">
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('ponte.theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
+  <script defer src="ponte-icons.js"></script>
+</head>
+<body>
+  <header class="ponte-header">
+    <div class="ponte-header-inner">
+      <div class="ponte-brand-block">
+        <a class="ponte-brand" href="https://ponte-marketplace.maputo2.workers.dev/#catalogo">
+          <svg class="ponte-brand-logo" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#a3e635"/><path d="M12 28V12L28 20L12 28Z" fill="#0c1715"/></svg>
+          <div class="ponte-brand-copy"><strong>ponte</strong><small>API MARKET · OZPRO</small></div>
+        </a>
+        <div class="ponte-breadcrumb">
+          <a href="https://ponte-marketplace.maputo2.workers.dev/#catalogo">Workspace</a>
+          <span>/</span>
+          <strong>FIPE Pro Studio</strong>
+        </div>
+      </div>
+      <div class="ponte-topbar-actions">
+        <span class="ponte-status-edge"><span class="ponte-status-dot"></span> FIPE Anycast &lt;1ms</span>
+        <a href="https://ponte-marketplace.maputo2.workers.dev/#catalogo" class="ponte-btn-marketplace">Marketplace</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="ponte-container">
+    <div class="ponte-hero">
+      <div class="ponte-badges-bar">
+        <span class="ponte-badge mint">● Carros, Motos &amp; Caminhões</span>
+        <span class="ponte-badge blue">📉 Série Histórica &amp; Depreciação</span>
+        <span class="ponte-badge amber">🚗 Cruzamento por Placa + IPVA</span>
+      </div>
+      <h1>Tabela FIPE &amp; Avaliação Veicular Pro</h1>
+      <p>Consulte o preço médio oficial da Fundação Instituto de Pesquisas Econômicas (FIPE) pelo código FIPE ou diretamente pela placa Mercosul, com cálculo automático de IPVA por UF.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:20px;align-items:start;">
+      <div class="ponte-card">
+        <div class="ponte-card-title"><h3>Avaliador FIPE &amp; IPVA</h3></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="fipeInput" class="ponte-input" value="005340-6" style="flex:1;font-family:var(--font-mono);" placeholder="Código FIPE (ex: 005340-6) ou Placa (BRA2E19)" />
+          <button class="ponte-btn ponte-btn-primary" onclick="consultar()">Avaliar</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('005340-6')">VW Nivus Highline</button>
+          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('002111-3')">Corolla Altis Hybrid</button>
+          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('811145-6')">Honda CG 160 Titan</button>
+          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('509123-1')">Scania R 450</button>
+          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('BRA2E19')">Por Placa: BRA2E19</button>
+        </div>
+        <div id="fipeCardBox"></div>
+      </div>
+
+      <div class="ponte-card">
+        <div class="ponte-card-title"><h3>Payload JSON Retornado</h3></div>
+        <pre id="jsonOutput" style="background:#030712;padding:14px;border-radius:8px;color:#a5f3fc;font-family:var(--font-mono);font-size:12px;max-height:420px;overflow-y:auto;white-space:pre-wrap;"></pre>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { FipePro } from './fipe-pro.js';
+
+    window.setVal = function(v) {
+      document.getElementById('fipeInput').value = v;
+      window.consultar();
+    };
+
+    window.consultar = function() {
+      const val = document.getElementById('fipeInput').value.trim();
+      const isPlaca = /^[A-Za-z]{3}/.test(val);
+      const res = isPlaca ? FipePro.consultarFipePorPlaca(val) : FipePro.consultarPorCodigoFipe(val);
+      document.getElementById('jsonOutput').textContent = JSON.stringify(res, null, 2);
+
+      const d = res.avaliacaoFipe || res;
+      document.getElementById('fipeCardBox').innerHTML = `
+        <div style="background:var(--paper-elevated);padding:16px;border-radius:10px;border:1px solid var(--line);">
+          <div style="font-size:12px;color:var(--muted);">${d.marca} • Código FIPE ${d.codigoFipe}</div>
+          <div style="font-size:16px;font-weight:800;color:var(--ink);margin:4px 0;">${d.modelo} (${d.anoModelo})</div>
+          <div style="font-size:24px;font-weight:900;color:var(--mint);font-family:var(--font-mono);margin:8px 0;">${d.precoFormatado}</div>
+          <div style="font-size:12px;color:var(--ink);">IPVA Estimado (${d.estimativaIpva.uf}): <strong>R$ ${d.estimativaIpva.valorAnualEstimado.toLocaleString('pt-BR')}</strong> • Depreciação 12m: <strong>${d.depreciacaoAnualPct}%</strong></div>
+        </div>
+      `;
+    };
+
+    window.consultar();
+  </script>
+</body>
+</html>
