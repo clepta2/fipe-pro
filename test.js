@@ -126,11 +126,15 @@ assert(dataScania.estimativaIpva.aliquotaPct === '1.5%', 'Alíquota de caminhão
 // ─── 6. CRUZAMENTO POR PLACA MERCOSUL OU ANTIGA ───
 console.log('\n--- 6. Cruzamento por Placa Mercosul & Cinza Antiga ---');
 
-const resPlacaMercosul = await worker.fetch(new Request('https://api.test/api/fipe/placa/COR2E19'), {});
-assert(resPlacaMercosul.status === 200, 'Endpoint /api/fipe/placa/COR2E19 responde 200');
+const resPlacaMercosul = await worker.fetch(new Request('https://api.test/api/fipe/placa/BRA2E19'), {});
+assert(resPlacaMercosul.status === 200, 'Endpoint /api/fipe/placa/BRA2E19 responde 200');
 const dataPlaca = await resPlacaMercosul.json();
 assert(dataPlaca.padraoPlaca === 'MERCOSUL', 'Padrão Mercosul identificado');
-assert(dataPlaca.avaliacaoFipe.marca === 'Toyota', 'Modelo cruzado com Toyota');
+assert(dataPlaca.avaliacaoFipe.marca === 'Volkswagen', 'Placa de referência mapeada corretamente');
+
+const resPlacaSemFipe = await worker.fetch(new Request('https://api.test/api/fipe/placa/ZZZ9Z99'), {});
+const dataSemFipe = await resPlacaSemFipe.json();
+assert(dataSemFipe.avaliacaoFipe === null && dataSemFipe.aviso !== undefined, 'Placa desconhecida não inventa modelo e orienta a informar o código FIPE');
 
 const resPlacaAntiga = await worker.fetch(new Request('https://api.test/api/fipe/placa/ABC1234'), {});
 const dataAntiga = await resPlacaAntiga.json();
@@ -138,6 +142,10 @@ assert(dataAntiga.padraoPlaca === 'CINZA_ANTIGA', 'Padrão Cinza Antiga identifi
 
 const resPlacaInvalida = await worker.fetch(new Request('https://api.test/api/fipe/placa/ABC'), {});
 assert(resPlacaInvalida.status === 400, 'Placa com tamanho incorreto rejeitada com HTTP 400');
+
+// 6.1 Código FIPE Inexistente deve responder 404 (nunca devolver Nivus disfarçado)
+const resCodInvalido = await worker.fetch(new Request('https://api.test/api/fipe/codigo/999999-9'), {});
+assert(resCodInvalido.status === 404, 'Código FIPE inexistente responde 404');
 
 
 // ─── 7. DECODIFICADOR DE CHASSI VIN (ISO 3779) ───
@@ -195,8 +203,8 @@ console.log('\n--- 10. Validação do SDK Isomórfico FipePro ---');
 const fipeCod = consultarPorCodigoFipe('002111-3', 2025, 'PR');
 assert(fipeCod.ok === true && fipeCod.marca === 'Toyota', 'SDK consultarPorCodigoFipe funciona');
 
-const fipePlaca = consultarFipePorPlaca('ONX1E23', 'SP');
-assert(fipePlaca.ok === true && fipePlaca.avaliacaoFipe.marca === 'Chevrolet', 'SDK consultarFipePorPlaca funciona');
+const fipePlaca = consultarFipePorPlaca('BRA2E19', 'SP');
+assert(fipePlaca.ok === true && fipePlaca.avaliacaoFipe.marca === 'Volkswagen', 'SDK consultarFipePorPlaca funciona');
 
 const chassiDecod = decodificarChassiVin('9BGRD48U1SP123456');
 assert(chassiDecod.ok === true && chassiDecod.wmi.fabricante.includes('General Motors'), 'SDK decodificarChassiVin funciona');

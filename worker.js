@@ -261,12 +261,17 @@ export default {
       const res = consultarPorCodigoFipe(cod, ano, uf);
 
       return new Response(JSON.stringify(res, null, 2), {
+        status: res.ok ? 200 : (res.statusHttp || 404),
         headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
       });
     }
 
-    // Default: Nivus padrão
-    return new Response(JSON.stringify(consultarPorCodigoFipe('005340-6', 2025, 'SP'), null, 2), {
+    return new Response(JSON.stringify({
+      ok: false,
+      erro: 'ROTA_NAO_ENCONTRADA',
+      mensagem: `Rota "${path}" não existe. Consulte GET /health para lista de rotas disponíveis.`
+    }, null, 2), {
+      status: 404,
       headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
     });
   }
