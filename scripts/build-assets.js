@@ -1,0 +1,42 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
+
+const stylesCss = fs.existsSync(path.join(rootDir, 'styles.css')) 
+  ? fs.readFileSync(path.join(rootDir, 'styles.css'), 'utf8') 
+  : '';
+const ponteSuiteCss = fs.existsSync(path.join(rootDir, 'ponte-suite.css'))
+  ? fs.readFileSync(path.join(rootDir, 'ponte-suite.css'), 'utf8')
+  : '';
+const html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+const sdk = fs.readFileSync(path.join(rootDir, 'fipe-pro.js'), 'utf8');
+const dadosVeiculos = fs.existsSync(path.join(rootDir, 'dados-veiculos.js'))
+  ? fs.readFileSync(path.join(rootDir, 'dados-veiculos.js'), 'utf8')
+  : '';
+const ponteIcons = fs.existsSync(path.join(rootDir, 'ponte-icons.js'))
+  ? fs.readFileSync(path.join(rootDir, 'ponte-icons.js'), 'utf8')
+  : '';
+
+const ozproMarkSvg = `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="40" height="40" rx="10" fill="#a3e635"/>
+  <path d="M12 28V12L28 20L12 28Z" fill="#0c1715"/>
+</svg>`;
+
+const output = `// site-assets.js — Gerado automaticamente para entrega na Borda Cloudflare Anycast (<2ms)
+// 100% Soberano (Zero I/O externo / Zero CDNs)
+
+export const STYLES_CSS = ${JSON.stringify(stylesCss)};
+export const PONTE_SUITE_CSS = ${JSON.stringify(ponteSuiteCss)};
+export const HTML_INDEX = ${JSON.stringify(html)};
+export const FIPE_PRO_SDK_JS = ${JSON.stringify(sdk)};
+export const DADOS_VEICULOS_JS = ${JSON.stringify(dadosVeiculos)};
+export const PONTE_ICONS_JS = ${JSON.stringify(ponteIcons)};
+export const OZPRO_MARK_SVG = ${JSON.stringify(ozproMarkSvg)};
+`;
+
+fs.writeFileSync(path.join(rootDir, 'site-assets.js'), output, 'utf8');
+console.log(`✅ site-assets.js de fipe-pro gerado com sucesso! (${(output.length / 1024).toFixed(1)} KB)`);

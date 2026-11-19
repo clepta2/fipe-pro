@@ -1,4 +1,17 @@
-﻿import { FipePro, consultarPorCodigoFipe, consultarFipePorPlaca, decodificarChassiVin, renderFipeCardSvg } from './fipe-pro.js';
+﻿import {
+  FipePro,
+  consultarPorCodigoFipe,
+  consultarFipePorPlaca,
+  decodificarChassiVin,
+  renderFipeCardSvg,
+  resolverUfPorPlaca,
+  buscarMarcasFipeLive,
+  buscarModelosFipeLive,
+  buscarAnosFipeLive,
+  consultarPrecoFipeLive,
+  buscarFipePorTextoLive,
+  VEICULOS_FIPE_CATALOGO
+} from './fipe-pro.js';
 import worker from './worker.js';
 
 console.log('🧪 Iniciando Bateria de Testes do Tabela FIPE & Avaliação Veicular Pro API...\n');
@@ -94,11 +107,11 @@ assert(dataCaminhoes.veiculos.every(v => v.tipo === 'caminhoes'), 'Filtro por ti
 // ─── 5. CONSULTA POR CÓDIGO FIPE & IPVA ───
 console.log('\n--- 5. Consulta por Código FIPE & Estimativa de IPVA ---');
 
-// 5.1 Nivus em SP (4%)
+// 5.1 Amarok em SP (4%)
 const resNivus = await worker.fetch(new Request('https://api.test/api/fipe/codigo/005340-6?uf=SP'), {});
 assert(resNivus.status === 200, 'Consulta código FIPE 005340-6 responde 200');
 const dataNivus = await resNivus.json();
-assert(dataNivus.marca === 'Volkswagen', 'Marca do Nivus confirmada');
+assert(/volkswagen/i.test(dataNivus.marca), 'Marca Volkswagen confirmada');
 assert(dataNivus.precoAtual > 100000, 'Preço venal de mercado consistente');
 assert(dataNivus.estimativaIpva.aliquotaPct === '4%', 'Alíquota de SP é 4%');
 assert(dataNivus.estimativaIpva.valorCotaUnicaComDesconto < dataNivus.estimativaIpva.valorAnualEstimado, 'Desconto de cota única calculado');
@@ -211,5 +224,91 @@ assert(chassiDecod.ok === true && chassiDecod.wmi.fabricante.includes('General M
 
 const cardSvg = renderFipeCardSvg(fipeCod);
 assert(cardSvg.includes('<svg') && cardSvg.includes('Corolla'), 'SDK renderFipeCardSvg gera SVG válido');
+
+
+// ─── 11. MARCAS OFICIAIS FIPE AO VIVO ───
+console.log('\n--- 11. Marcas Oficiais FIPE (Carros, Motos e Caminhões) ---');
+
+const resMarcasCarros = await worker.fetch(new Request('https://api.test/api/fipe/marcas?tipo=carros', {
+  headers: { 'Authorization': 'Bearer fipe_master_test' }
+}), {});
+assert(resMarcasCarros.status === 200, 'Endpoint /api/fipe/marcas responde 200');
+const dataMarcas = await resMarcasCarros.json();
+assert(dataMarcas.ok === true, 'Marcas ok: true');
+assert(dataMarcas.total >= 15, 'Mínimo de 15 marcas homologadas');
+assert(dataMarcas.marcas.some(m => m.nome.toLowerCase().includes('volkswagen') || m.nome.toLowerCase().includes('toyota')), 'Grandes montadoras presentes');
+
+
+// ─── 12. MODELOS FIPE POR MARCA ───
+console.log('\n--- 12. Modelos FIPE por Marca Oficial ---');
+
+const resModelosVw = await worker.fetch(new Request('https://api.test/api/fipe/modelos/59?tipo=carros', {
+  headers: { 'Authorization': 'Bearer fipe_master_test' }
+}), {});
+assert(resModelosVw.status === 200, 'Endpoint /api/fipe/modelos/59 responde 200');
+const dataModelos = await resModelosVw.json();
+assert(dataModelos.ok === true, 'Modelos ok: true');
+assert(dataModelos.total > 0, 'Modelos da Volkswagen retornados com sucesso');
+
+
+// ─── 13. BUSCA TEXTUAL UNIVERSAL FIPE ───
+console.log('\n--- 13. Busca Textual Universal FIPE ---');
+
+const resBuscaCivic = await worker.fetch(new Request('https://api.test/api/fipe/busca?q=Civic', {
+  headers: { 'Authorization': 'Bearer fipe_master_test' }
+}), {});
+assert(resBuscaCivic.status === 200, 'Endpoint /api/fipe/busca responde 200 para Civic');
+const dataBusca = await resBuscaCivic.json();
+assert(dataBusca.ok === true, 'Busca ok: true');
+assert(dataBusca.total > 0, 'Civic encontrado na FIPE');
+
+const resBuscaCurta = await worker.fetch(new Request('https://api.test/api/fipe/busca?q=a', {
+  headers: { 'Authorization': 'Bearer fipe_master_test' }
+}), {});
+assert(resBuscaCurta.status === 400, 'Busca com 1 caractere rejeitada com 400');
+
+
+// ─── 14. RESOLUÇÃO DE ESTADO DENATRAN POR PLACA ───
+console.log('\n--- 14. Resolução de Estado Denatran por Placa ---');
+
+const ufBra = resolverUfPorPlaca('BRA2E19');
+assert(ufBra.uf === 'SP', 'Placa BRA identifica São Paulo (SP)');
+
+const ufRio = resolverUfPorPlaca('RIO2A18');
+assert(ufRio.uf === 'RJ', 'Placa RIO identifica Rio de Janeiro (RJ)');
+
+const ufSpk = resolverUfPorPlaca('SPK9F42');
+assert(ufSpk.uf === 'SP', 'Placa SPK identifica São Paulo (SP)');
+
+const ufCur = resolverUfPorPlaca('AAA1234');
+assert(ufCur.uf === 'PR', 'Placa AAA identifica Paraná (PR)');
+
+
+// ─── 15. EXPANSÃO DO CATÁLOGO SOBERANO (>30 VEÍCULOS) ───
+console.log('\n--- 15. Catálogo Soberano Expandido (>30 Veículos Reais) ---');
+
+const totalSoberanos = Object.keys(VEICULOS_FIPE_CATALOGO).length;
+assert(totalSoberanos >= 30, `Catálogo soberano possui ${totalSoberanos} veículos (esperado >= 30, não apenas 12)`);
+
+
+// ─── 16. ENTREGA DE ASSETS WEB & APP-SHELL NA BORDA ───
+console.log('\n--- 16. Entrega de Assets Web & App-Shell na Borda Anycast ---');
+
+const resCss = await worker.fetch(new Request('https://api.test/styles.css'), {});
+assert(resCss.status === 200 && resCss.headers.get('Content-Type').includes('text/css'), 'styles.css servido na borda');
+
+const resPonteCss = await worker.fetch(new Request('https://api.test/ponte-suite.css'), {});
+assert(resPonteCss.status === 200 && resPonteCss.headers.get('Content-Type').includes('text/css'), 'ponte-suite.css servido na borda');
+
+const resIcons = await worker.fetch(new Request('https://api.test/ponte-icons.js'), {});
+assert(resIcons.status === 200 && resIcons.headers.get('Content-Type').includes('javascript'), 'ponte-icons.js servido na borda');
+
+const resHtmlWeb = await worker.fetch(new Request('https://api.test/', {
+  headers: { 'Accept': 'text/html,application/xhtml+xml' }
+}), {});
+assert(resHtmlWeb.status === 200 && resHtmlWeb.headers.get('Content-Type').includes('text/html'), 'index.html App-Shell servido na raiz para navegador');
+const htmlBody = await resHtmlWeb.text();
+assert(htmlBody.includes('FIPE Pro Studio'), 'Título do Studio presente no HTML');
+assert(htmlBody.includes('selectMarca'), 'Seletor dinâmico em cascata presente no HTML');
 
 console.log(`\n🎉 Todos os ${passCount} testes do FIPE Pro foram executados e APROVADOS com sucesso! Zero falhas (${failCount}).\n`);

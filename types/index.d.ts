@@ -64,6 +64,21 @@ export interface DecodificacaoChassiVin {
   };
 }
 
+export interface MarcaFipe {
+  codigo: string;
+  nome: string;
+}
+
+export interface ModeloFipe {
+  codigo: number;
+  nome: string;
+}
+
+export interface AnoFipe {
+  codigo: string;
+  nome: string;
+}
+
 export declare class FipePro {
   static baseUrl: string;
   static apiKey: string;
@@ -71,9 +86,16 @@ export declare class FipePro {
   static configure(config?: { apiKey?: string; baseUrl?: string }): void;
   static getHealth(): Promise<{ ok: boolean; servico: string; versao: string }>;
   static getCatalogo(tipo?: 'carros' | 'motos' | 'caminhoes'): Promise<{ ok: boolean; total: number; veiculos: VeiculoFipe[] }>;
+  static buscarMarcasFipeLive(tipo?: 'carros' | 'motos' | 'caminhoes'): Promise<MarcaFipe[]>;
+  static buscarModelosFipeLive(tipo: string, marcaId: string): Promise<ModeloFipe[]>;
+  static buscarAnosFipeLive(tipo: string, marcaId: string, modeloId: string): Promise<AnoFipe[]>;
+  static consultarPrecoFipeLive(tipo: string, marcaId: string, modeloId: string, anoId: string, uf?: string): Promise<FipeConsultaResponse>;
+  static buscarFipePorTextoLive(termo: string, tipo?: string): Promise<any[]>;
+  static resolverUfPorPlaca(placa: string): { uf: string; estadoNome: string; confianca: string };
   static consultarPorCodigoFipe(codigo: string, ano?: number, ufIpva?: string): FipeConsultaResponse;
-  static consultarFipePorPlaca(placa: string, uf?: string): { ok: boolean; placa: string; padraoPlaca: string; avaliacaoFipe: FipeConsultaResponse };
+  static consultarFipePorPlaca(placa: string, uf?: string): { ok: boolean; placa: string; padraoPlaca: string; origemRegistro?: any; avaliacaoFipe: FipeConsultaResponse | null; aviso?: string };
   static decodificarChassiVin(vin: string): DecodificacaoChassiVin;
+  static renderFipeCardSvg(fipeData: any): string;
   static getFipeCardSvgUrl(codigo: string, uf?: string): string;
 }
 

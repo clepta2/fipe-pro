@@ -1,5 +1,17 @@
-﻿/**
+/**
  * worker.js — Cloudflare Worker Anycast para Tabela FIPE & Avaliação Veicular Pro API
+ *
+ * Cobertura Completa:
+ * - Tabela FIPE Oficial em Tempo Real (Carros, Motos e Caminhões)
+ * - 100+ Marcas Homologadas e Dezenas de Milhares de Modelos Oficiais
+ * - Navegador em Cascata: Categoria -> Marca -> Modelo -> Ano
+ * - Cotação Oficial com Histórico de 12 Meses e Projeção de Depreciação
+ * - Calculadora Oficial de IPVA para as 27 Unidades Federativas (UFs)
+ * - Custo Total de Propriedade (TCO) Anual (IPVA + Seguro + Manutenção + Depreciação)
+ * - Validador e Decodificador de Chassi VIN (ISO 3779 / SAE J853 com Módulo 11 NHTSA)
+ * - Cruzamento com Padrão de Placa Mercosul / Cinza e Faixas de Registro Denatran
+ * - Renderizador Vetorial SVG de Cards de Cotação FIPE (<2ms Anycast)
+ * - Studio Visual Oficial entregue na Raiz para Navegadores Web
  *
  * @license MIT
  * @see https://github.com/clepta2/fipe-pro
@@ -9,11 +21,30 @@ import {
   FipePro,
   VEICULOS_FIPE_CATALOGO,
   ALIQUOTAS_IPVA_27_UFS,
+  MAPA_REFERENCIA_PLACAS,
+  FAIXAS_UF_PLACA,
+  resolverUfPorPlaca,
+  buscarMarcasFipeLive,
+  buscarModelosFipeLive,
+  buscarAnosFipeLive,
+  consultarPrecoFipeLive,
+  buscarFipePorTextoLive,
   consultarPorCodigoFipe,
+  consultarFipeLivePorCodigo,
   consultarFipePorPlaca,
   decodificarChassiVin,
   renderFipeCardSvg
 } from './fipe-pro.js';
+
+import {
+  STYLES_CSS,
+  PONTE_SUITE_CSS,
+  HTML_INDEX,
+  FIPE_PRO_SDK_JS,
+  DADOS_VEICULOS_JS,
+  PONTE_ICONS_JS,
+  OZPRO_MARK_SVG
+} from './site-assets.js';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -120,7 +151,7 @@ function aplicarRateLimit(keyId, config) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
     const t0 = performance.now();
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, '') || '/';
@@ -129,6 +160,80 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
+    // ─── 0. ENTREGA DE ASSETS ESTÁTICOS NA BORDA ANYCAST ───
+    if (url.pathname === '/styles.css') {
+      return new Response(STYLES_CSS, {
+        headers: {
+          'Content-Type': 'text/css; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+          ...CORS_HEADERS
+        }
+      });
+    }
+
+    if (url.pathname === '/ponte-suite.css') {
+      return new Response(PONTE_SUITE_CSS, {
+        headers: {
+          'Content-Type': 'text/css; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+          ...CORS_HEADERS
+        }
+      });
+    }
+
+    if (url.pathname === '/fipe-pro.js') {
+      return new Response(FIPE_PRO_SDK_JS, {
+        headers: {
+          'Content-Type': 'application/javascript; charset=utf-8',
+          'Cache-Control': 'public, max-age=3600',
+          ...CORS_HEADERS
+        }
+      });
+    }
+
+    if (url.pathname === '/dados-veiculos.js') {
+      return new Response(DADOS_VEICULOS_JS, {
+        headers: {
+          'Content-Type': 'application/javascript; charset=utf-8',
+          'Cache-Control': 'public, max-age=3600',
+          ...CORS_HEADERS
+        }
+      });
+    }
+
+    if (url.pathname === '/ponte-icons.js') {
+      return new Response(PONTE_ICONS_JS, {
+        headers: {
+          'Content-Type': 'application/javascript; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+          ...CORS_HEADERS
+        }
+      });
+    }
+
+    if (url.pathname === '/brand/ozpro-mark.svg') {
+      return new Response(OZPRO_MARK_SVG, {
+        headers: {
+          'Content-Type': 'image/svg+xml; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+          ...CORS_HEADERS
+        }
+      });
+    }
+
+    // Servir Studio Visual na Raiz para Navegadores Web
+    const acceptHeader = request.headers.get('Accept') || '';
+    if ((path === '/' || path === '/index.html' || path === '/app') && !acceptHeader.includes('application/json') && !url.searchParams.get('json')) {
+      return new Response(HTML_INDEX, {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=300',
+          ...CORS_HEADERS
+        }
+      });
+    }
+
+    // ─── AVALIAÇÃO DE AUTENTICAÇÃO E RATE LIMIT ───
     const { plano, keyId, config, isAnonymous } = resolverPlanoEChave(request);
     const rateCheck = aplicarRateLimit(keyId, config);
 
@@ -150,12 +255,12 @@ export default {
       'x-fipe-edge-latency': `${Math.max(1, Math.round(performance.now() - t0))}ms`
     };
 
-    // 1. HEALTHCHECK
+    // 1. HEALTHCHECK & METADADOS
     if (path === '/' || path === '/health' || path === '/status' || path === '/api/fipe/health') {
       return new Response(JSON.stringify({
         ok: true,
         servico: 'Tabela FIPE & Precificação Veicular Anycast Pro',
-        versao: '2.0.0',
+        versao: '3.0.0',
         borda: 'Cloudflare Workers Anycast (<2ms)',
         uptimeSegundos: Math.floor((Date.now() - BOOT_TIME) / 1000),
         planoAtivo: config.nome,
@@ -163,18 +268,20 @@ export default {
         totalUfsIpva: Object.keys(ALIQUOTAS_IPVA_27_UFS).length,
         recursos: [
           'Consulta por Código FIPE Oficial (Carros, Motos e Caminhões)',
-          'Cruzamento Direto por Placa Mercosul ou Antiga',
-          'Decodificador e Validador de Chassi VIN (ISO 3779 / SAE J853)',
+          'Navegador de Marcas, Modelos e Anos FIPE em Tempo Real',
+          'Busca Universal Textual por Modelo, Marca ou Código',
+          'Cruzamento com Padrão de Placa Mercosul ou Antiga e Faixas Denatran',
+          'Decodificador e Validador de Chassi VIN (ISO 3779 / SAE J853 com Módulo 11)',
           'Calculadora Oficial de IPVA para as 27 UFs com Desconto de Cota Única',
-          'Custo Total de Propriedade (TCO) & Depreciação Anual',
-          'Renderizador Vetorial SVG de Cotação FIPE'
+          'Custo Total de Propriedade (TCO 12 Meses) & Depreciação Anual',
+          'Renderizador Vetorial SVG de Cotação FIPE em Alta Definição'
         ]
       }, null, 2), {
         headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
       });
     }
 
-    // 2. CATÁLOGO COMPLETO
+    // 2. CATÁLOGO SOBERANO COMPLETO
     if (path === '/api/fipe/catalogo') {
       const tipo = url.searchParams.get('tipo')?.toLowerCase();
       let lista = Object.values(VEICULOS_FIPE_CATALOGO);
@@ -189,11 +296,139 @@ export default {
       });
     }
 
-    // 3. CONSULTA POR PLACA
+    // 3. BUSCA DE MARCAS FIPE AO VIVO
+    if (path === '/api/fipe/marcas') {
+      const tipo = url.searchParams.get('tipo') || 'carros';
+      const marcas = await buscarMarcasFipeLive(tipo);
+      return new Response(JSON.stringify({
+        ok: true,
+        tipo,
+        total: marcas.length,
+        marcas
+      }, null, 2), {
+        headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
+      });
+    }
+
+    // 4. BUSCA DE MODELOS DE UMA MARCA FIPE AO VIVO
+    const matchModelos = path.match(/^\/api\/fipe\/modelos\/([a-zA-Z0-9]+)$/i);
+    if (matchModelos || path === '/api/fipe/modelos') {
+      const marcaId = matchModelos ? matchModelos[1] : url.searchParams.get('marca');
+      const tipo = url.searchParams.get('tipo') || 'carros';
+
+      if (!marcaId) {
+        return new Response(JSON.stringify({
+          ok: false,
+          erro: 'MARCA_OBRIGATORIA',
+          mensagem: 'Informe o código da marca via query string ?marca=ID ou rota /api/fipe/modelos/:marcaId'
+        }, null, 2), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
+        });
+      }
+
+      const modelos = await buscarModelosFipeLive(tipo, marcaId);
+      return new Response(JSON.stringify({
+        ok: true,
+        tipo,
+        marcaId,
+        total: modelos.length,
+        modelos
+      }, null, 2), {
+        headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
+      });
+    }
+
+    // 5. BUSCA DE ANOS DE UM MODELO FIPE AO VIVO
+    const matchAnos = path.match(/^\/api\/fipe\/anos\/([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)$/i);
+    if (matchAnos || path === '/api/fipe/anos') {
+      const marcaId = matchAnos ? matchAnos[1] : url.searchParams.get('marca');
+      const modeloId = matchAnos ? matchAnos[2] : url.searchParams.get('modelo');
+      const tipo = url.searchParams.get('tipo') || 'carros';
+
+      if (!marcaId || !modeloId) {
+        return new Response(JSON.stringify({
+          ok: false,
+          erro: 'PARAMETROS_INSUFICIENTES',
+          mensagem: 'Informe marca e modelo: ?marca=ID&modelo=ID ou /api/fipe/anos/:marcaId/:modeloId'
+        }, null, 2), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
+        });
+      }
+
+      const anos = await buscarAnosFipeLive(tipo, marcaId, modeloId);
+      return new Response(JSON.stringify({
+        ok: true,
+        tipo,
+        marcaId,
+        modeloId,
+        total: anos.length,
+        anos
+      }, null, 2), {
+        headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
+      });
+    }
+
+    // 6. COTAÇÃO OFICIAL FIPE POR MARCA, MODELO E ANO
+    if (path === '/api/fipe/cotacao') {
+      const marcaId = url.searchParams.get('marca');
+      const modeloId = url.searchParams.get('modelo');
+      const anoId = url.searchParams.get('ano');
+      const tipo = url.searchParams.get('tipo') || 'carros';
+      const uf = url.searchParams.get('uf') || 'SP';
+
+      if (!marcaId || !modeloId || !anoId) {
+        return new Response(JSON.stringify({
+          ok: false,
+          erro: 'PARAMETROS_INSUFICIENTES',
+          mensagem: 'Informe ?marca=ID&modelo=ID&ano=ID'
+        }, null, 2), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
+        });
+      }
+
+      const res = await consultarPrecoFipeLive(tipo, marcaId, modeloId, anoId, uf);
+      return new Response(JSON.stringify(res, null, 2), {
+        status: res.ok ? 200 : 404,
+        headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
+      });
+    }
+
+    // 7. BUSCA RÁPIDA TEXTUAL UNIVERSAL
+    if (path === '/api/fipe/busca') {
+      const q = url.searchParams.get('q') || url.searchParams.get('termo') || '';
+      const tipo = url.searchParams.get('tipo') || 'carros';
+
+      if (q.length < 2) {
+        return new Response(JSON.stringify({
+          ok: false,
+          erro: 'TERMO_MUITO_CURTO',
+          mensagem: 'O termo de busca deve conter pelo menos 2 caracteres.'
+        }, null, 2), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
+        });
+      }
+
+      const resultados = await buscarFipePorTextoLive(q, tipo);
+      return new Response(JSON.stringify({
+        ok: true,
+        termo: q,
+        tipo,
+        total: resultados.length,
+        resultados
+      }, null, 2), {
+        headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...rateHeaders }
+      });
+    }
+
+    // 8. CONSULTA POR PLACA (MERCOSUL OU ANTIGA COM RESOLUÇÃO DENATRAN)
     const matchPlaca = path.match(/^\/api\/fipe\/placa\/([a-zA-Z0-9\-]+)$/i);
     if (matchPlaca || (path === '/api/fipe/placa' && url.searchParams.get('placa'))) {
       const placa = matchPlaca ? matchPlaca[1] : url.searchParams.get('placa');
-      const uf = url.searchParams.get('uf') || 'SP';
+      const uf = url.searchParams.get('uf');
       const res = consultarFipePorPlaca(placa, uf);
       return new Response(JSON.stringify(res, null, 2), {
         status: res.ok ? 200 : 400,
@@ -201,7 +436,7 @@ export default {
       });
     }
 
-    // 4. DECODIFICADOR DE CHASSI VIN (ISO 3779)
+    // 9. DECODIFICADOR DE CHASSI VIN (ISO 3779)
     const matchChassi = path.match(/^\/api\/fipe\/chassi\/([a-zA-Z0-9]+)$/i) || path.match(/^\/api\/fipe\/vin\/([a-zA-Z0-9]+)$/i);
     if (matchChassi || (path === '/api/fipe/chassi' && url.searchParams.get('vin'))) {
       const vin = matchChassi ? matchChassi[1] : url.searchParams.get('vin');
@@ -212,7 +447,7 @@ export default {
       });
     }
 
-    // 5. TABELA DE IPVA DAS 27 UFS
+    // 10. TABELA DE IPVA DAS 27 UFS
     if (path === '/api/fipe/ipva' || path.startsWith('/api/fipe/ipva/')) {
       const ufParam = path.split('/')[4]?.toUpperCase() || url.searchParams.get('uf')?.toUpperCase();
       if (ufParam && ALIQUOTAS_IPVA_27_UFS[ufParam]) {
@@ -234,7 +469,7 @@ export default {
       });
     }
 
-    // 6. RENDERIZADOR SVG DO CARD DE COTAÇÃO FIPE
+    // 11. RENDERIZADOR SVG DO CARD DE COTAÇÃO FIPE
     const matchSvg = path.match(/^\/api\/fipe\/card\/([0-9\-]+)\.svg$/i) || path.match(/^\/api\/fipe\/([0-9\-]+)\.svg$/i);
     if (matchSvg || path === '/api/fipe/card.svg') {
       const cod = matchSvg ? matchSvg[1] : (url.searchParams.get('codigo') || '005340-6');
@@ -252,13 +487,13 @@ export default {
       });
     }
 
-    // 7. CONSULTA POR CÓDIGO FIPE
+    // 12. CONSULTA POR CÓDIGO FIPE OFICIAL
     const matchCod = path.match(/^\/api\/fipe\/codigo\/([0-9\-]+)$/i) || path.match(/^\/api\/fipe\/([0-9\-]+)$/i);
     if (matchCod || url.searchParams.get('codigo')) {
       const cod = matchCod ? matchCod[1] : url.searchParams.get('codigo');
       const uf = url.searchParams.get('uf') || 'SP';
-      const ano = url.searchParams.get('ano') || 2025;
-      const res = consultarPorCodigoFipe(cod, ano, uf);
+      const ano = url.searchParams.get('ano');
+      const res = await consultarFipeLivePorCodigo(cod, ano, uf);
 
       return new Response(JSON.stringify(res, null, 2), {
         status: res.ok ? 200 : (res.statusHttp || 404),

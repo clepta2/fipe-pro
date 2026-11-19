@@ -1,100 +1,1122 @@
 <!DOCTYPE html>
 <html lang="pt-BR" data-theme="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FIPE Pro Studio • Tabela FIPE Oficial, Depreciação &amp; IPVA • Ponte API</title>
-  <link rel="stylesheet" href="ponte-suite.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FIPE Pro Studio • Tabela FIPE Oficial, Depreciação, IPVA 27 UFs &amp; Chassi VIN • Ponte API Market</title>
+  <meta name="description" content="Console Oficial da Tabela FIPE Anycast: Consulta em tempo real de Carros, Motos e Caminhões, 100+ Marcas, Decodificador de Placa Mercosul, Chassi VIN (ISO 3779), IPVA das 27 UFs e TCO." />
+  
+  <link rel="stylesheet" href="styles.css?v=3.5.0" />
+  <link rel="stylesheet" href="ponte-suite.css" />
   <script>
     (function() {
-      const savedTheme = localStorage.getItem('ponte.theme') || 'dark';
+      const savedTheme = localStorage.getItem('ponte.theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       document.documentElement.setAttribute('data-theme', savedTheme);
     })();
   </script>
   <script defer src="ponte-icons.js"></script>
+  <style>
+    .fipe-hero-banner {
+      background: linear-gradient(135deg, rgba(163, 230, 53, 0.08) 0%, rgba(16, 185, 129, 0.04) 100%);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .fipe-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .fipe-kpi-card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: border-color 0.2s;
+    }
+    .fipe-kpi-card:hover {
+      border-color: var(--mint);
+    }
+    .fipe-kpi-val {
+      font-size: 26px;
+      font-weight: 900;
+      font-family: var(--font-mono, monospace);
+      color: var(--mint);
+    }
+    .fipe-kpi-lbl {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .fipe-price-highlight {
+      font-size: 34px;
+      font-weight: 900;
+      color: #10b981;
+      font-family: var(--font-mono, monospace);
+      letter-spacing: -0.5px;
+    }
+    .fipe-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .fipe-tag.mint { background: rgba(163, 230, 53, 0.15); color: #a3e635; border: 1px solid rgba(163, 230, 53, 0.3); }
+    .fipe-tag.blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .fipe-tag.amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .fipe-tag.emerald { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+    
+    .terminal-window {
+      background: #060d0b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl);
+      display: flex;
+      flex-direction: column;
+    }
+    .terminal-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .terminal-dots { display: flex; gap: 6px; }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.red { background: #ef4444; }
+    .terminal-dot.yellow { background: #f59e0b; }
+    .terminal-dot.green { background: #10b981; }
+
+    .fipe-select-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .fipe-select-group label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .fipe-select {
+      background: var(--paper-elevated);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .fipe-select:focus {
+      border-color: var(--mint);
+    }
+
+    .tco-breakdown {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .tco-item {
+      background: var(--paper-elevated);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      text-align: center;
+    }
+    .tco-val {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+      font-family: var(--font-mono, monospace);
+    }
+    .tco-lbl {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .quick-pill {
+      background: var(--paper-elevated);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      border-radius: var(--radius-full);
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .quick-pill:hover {
+      border-color: var(--mint);
+      color: var(--mint);
+      transform: translateY(-1px);
+    }
+  </style>
 </head>
 <body>
-  <header class="ponte-header">
-    <div class="ponte-header-inner">
-      <div class="ponte-brand-block">
-        <a class="ponte-brand" href="https://ponte-marketplace.maputo2.workers.dev/#catalogo">
-          <svg class="ponte-brand-logo" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#a3e635"/><path d="M12 28V12L28 20L12 28Z" fill="#0c1715"/></svg>
-          <div class="ponte-brand-copy"><strong>ponte</strong><small>API MARKET · OZPRO</small></div>
+
+  <div class="sidebar-drawer-backdrop" id="sidebar-drawer-backdrop" hidden></div>
+
+  <div class="app-shell">
+    <!-- Sidebar Oficial OZPRO / Ponte -->
+    <aside class="sidebar" aria-label="Navegação principal">
+      <button class="sidebar-drawer-close" id="sidebar-drawer-close" aria-label="Fechar menu lateral"><i data-lucide="x"></i></button>
+      <a class="brand" href="https://ponte-marketplace.maputo2.workers.dev/#catalogo" aria-label="Ponte API, FIPE Pro">
+        <svg class="brand-mark" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="40" height="40" rx="10" fill="#a3e635"/>
+          <path d="M12 28V12L28 20L12 28Z" fill="#0c1715"/>
+        </svg>
+        <span><strong>ponte</strong><small>FIPE PRO · OZPRO</small></span>
+      </a>
+
+      <nav class="primary-nav" id="primary-nav">
+        <div class="nav-section-label">CONSULTAS AO VIVO</div>
+        <button class="nav-link is-active" data-tab="fipe-live" onclick="switchTab('fipe-live')">
+          <i data-lucide="activity"></i> <span>Tabela FIPE Oficial</span>
+        </button>
+        <button class="nav-link" data-tab="busca" onclick="switchTab('busca')">
+          <i data-lucide="search"></i> <span>Busca Rápida Universal</span>
+        </button>
+        <button class="nav-link" data-tab="placa" onclick="switchTab('placa')">
+          <i data-lucide="tag"></i> <span>Consulta por Placa</span>
+        </button>
+        <button class="nav-link" data-tab="chassi" onclick="switchTab('chassi')">
+          <i data-lucide="hash"></i> <span>Decodificador VIN</span>
+        </button>
+
+        <div class="nav-section-label">FISCAL &amp; CUSTO TOTAL</div>
+        <button class="nav-link" data-tab="ipva" onclick="switchTab('ipva')">
+          <i data-lucide="landmark"></i> <span>Tabela IPVA 27 UFs</span>
+        </button>
+        <button class="nav-link" data-tab="tco" onclick="switchTab('tco')">
+          <i data-lucide="calculator"></i> <span>Simulador TCO &amp; Depreciação</span>
+        </button>
+        <button class="nav-link" data-tab="cardsvg" onclick="switchTab('cardsvg')">
+          <i data-lucide="image"></i> <span>Card Vetorial SVG</span>
+        </button>
+
+        <div class="nav-section-label">DESENVOLVEDORES</div>
+        <button class="nav-link" data-tab="sandbox" onclick="switchTab('sandbox')">
+          <i data-lucide="terminal"></i> <span>API Terminal Sandbox</span>
+        </button>
+        <button class="nav-link" data-tab="catalogo" onclick="switchTab('catalogo')">
+          <i data-lucide="layers"></i> <span>Catálogo Soberano (42 Top)</span>
+        </button>
+
+        <div class="nav-section-label">ECOSSISTEMA PONTE</div>
+        <a class="nav-link" href="https://ponte-marketplace.maputo2.workers.dev/#catalogo" target="_blank" rel="noopener">
+          <i data-lucide="layout-grid"></i> <span>API Marketplace</span>
+          <span class="nav-ext"><i data-lucide="arrow-up-right"></i></span>
         </a>
-        <div class="ponte-breadcrumb">
-          <a href="https://ponte-marketplace.maputo2.workers.dev/#catalogo">Workspace</a>
-          <span>/</span>
-          <strong>FIPE Pro Studio</strong>
+        <a class="nav-link" href="https://github.com/clepta2/fipe-pro" target="_blank" rel="noopener">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path><path d="M9 18c-4.51 2-5-2-7-2"></path></svg>
+          <span>GitHub Oficial</span>
+          <span class="nav-ext"><i data-lucide="arrow-up-right"></i></span>
+        </a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="status-row">
+          <span class="status-dot connected"></span>
+          <span>FIPE Anycast · &lt;1ms</span>
         </div>
+        <div class="profile-row">
+          <div class="avatar lg" style="background:#a3e635; color:#0c1715; font-weight:800;">🚗</div>
+          <div class="profile-copy">
+            <strong>FIPE Pro Anycast</strong>
+            <span>Tabela Oficial FIPE v3.0</span>
+          </div>
+        </div>
+        <div class="sidebar-version">v3.0.0 · 100+ Marcas · Denatran VIN</div>
       </div>
-      <div class="ponte-topbar-actions">
-        <span class="ponte-status-edge"><span class="ponte-status-dot"></span> FIPE Anycast &lt;1ms</span>
-        <a href="https://ponte-marketplace.maputo2.workers.dev/#catalogo" class="ponte-btn-marketplace">Marketplace</a>
+    </aside>
+
+    <!-- Conteúdo Principal -->
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="topbar-btn" id="mobile-drawer-toggle" aria-label="Abrir menu"><i data-lucide="menu"></i></button>
+          <div class="breadcrumb">
+            <a href="https://ponte-marketplace.maputo2.workers.dev/#catalogo">Workspace</a>
+            <span>/</span>
+            <strong>FIPE Pro Studio</strong>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button class="theme-toggle" id="theme-toggle" aria-label="Alternar tema"><i data-lucide="sun"></i></button>
+          <a href="https://ponte-marketplace.maputo2.workers.dev/#catalogo" class="btn btn-secondary btn-sm">Marketplace</a>
+        </div>
+      </header>
+
+      <div class="content-area">
+        <!-- Hero Banner Oficial -->
+        <div class="fipe-hero-banner">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <span class="fipe-tag mint">● FIPE Oficial em Tempo Real</span>
+            <span class="fipe-tag blue">● 100+ Marcas &amp; Dezenas de Milhares de Modelos</span>
+            <span class="fipe-tag emerald">● Alíquotas Oficiais IPVA 27 UFs</span>
+            <span class="fipe-tag amber">● Padrão Denatran Mercosul &amp; Chassi VIN ISO 3779</span>
+          </div>
+          <h1 style="font-size:26px;font-weight:900;margin:0 0 8px 0;letter-spacing:-0.5px;">Tabela FIPE Oficial &amp; Avaliação Veicular Anycast</h1>
+          <p style="margin:0;color:var(--muted);font-size:14px;max-width:850px;">
+            Consulte a precificação média oficial da Fundação Instituto de Pesquisas Econômicas (FIPE) navegando pela árvore viva de marcas e modelos, por código FIPE, decodificação de chassi VIN ou cruzamento com faixas de emplacamento e cálculo de IPVA.
+          </p>
+        </div>
+
+        <!-- KPIs de Topo -->
+        <div class="fipe-kpi-grid">
+          <div class="fipe-kpi-card">
+            <span class="fipe-kpi-val" id="kpiMarcas">108</span>
+            <span class="fipe-kpi-lbl">Marcas Homologadas (Carros)</span>
+          </div>
+          <div class="fipe-kpi-card">
+            <span class="fipe-kpi-val" id="kpiMotos">104</span>
+            <span class="fipe-kpi-lbl">Marcas de Motos Oficiais</span>
+          </div>
+          <div class="fipe-kpi-card">
+            <span class="fipe-kpi-val" id="kpiCaminhoes">29</span>
+            <span class="fipe-kpi-lbl">Marcas de Caminhões</span>
+          </div>
+          <div class="fipe-kpi-card">
+            <span class="fipe-kpi-val">27 UFs</span>
+            <span class="fipe-kpi-lbl">Calculadora IPVA Atualizada</span>
+          </div>
+          <div class="fipe-kpi-card">
+            <span class="fipe-kpi-val">&lt; 1ms</span>
+            <span class="fipe-kpi-lbl">Latência Anycast Cloudflare</span>
+          </div>
+        </div>
+
+        <!-- ABA 1: TABELA FIPE OFICIAL (CASCATA LIVE) -->
+        <div id="tab-fipe-live" class="tab-pane">
+          <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:start;">
+            <!-- Painel de Seleção em Cascata -->
+            <div class="card" style="padding:24px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+                <h3 style="margin:0;font-size:17px;font-weight:800;">Navegador Oficial FIPE (Ao Vivo)</h3>
+                <span class="fipe-tag mint" id="fipeStatusTag">Conectado</span>
+              </div>
+
+              <!-- Tipo de Veículo -->
+              <div class="fipe-select-group">
+                <label>1. Categoria do Veículo</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                  <button class="btn btn-secondary btn-sm" id="btnTipoCarros" onclick="selecionarTipo('carros')">🚗 Carros</button>
+                  <button class="btn btn-secondary btn-sm" id="btnTipoMotos" onclick="selecionarTipo('motos')">🏍️ Motos</button>
+                  <button class="btn btn-secondary btn-sm" id="btnTipoCaminhoes" onclick="selecionarTipo('caminhoes')">🚛 Caminhões</button>
+                </div>
+              </div>
+
+              <!-- Marca -->
+              <div class="fipe-select-group">
+                <label>2. Marca Oficial (<span id="marcaCount">Carregando...</span>)</label>
+                <select id="selectMarca" class="fipe-select" onchange="aoMudarMarca()">
+                  <option value="">Selecione uma marca...</option>
+                </select>
+              </div>
+
+              <!-- Modelo -->
+              <div class="fipe-select-group">
+                <label>3. Modelo do Veículo (<span id="modeloCount">Aguardando marca</span>)</label>
+                <select id="selectModelo" class="fipe-select" onchange="aoMudarModelo()" disabled>
+                  <option value="">Primeiro selecione a marca acima...</option>
+                </select>
+              </div>
+
+              <!-- Ano e Combustível -->
+              <div class="fipe-select-group">
+                <label>4. Ano Modelo &amp; Combustível</label>
+                <select id="selectAno" class="fipe-select" onchange="aoMudarAno()" disabled>
+                  <option value="">Aguardando seleção do modelo...</option>
+                </select>
+              </div>
+
+              <!-- UF para Cálculo do IPVA -->
+              <div class="fipe-select-group">
+                <label>5. Estado (UF) para Cálculo Oficial do IPVA</label>
+                <select id="selectUf" class="fipe-select" onchange="consultarPrecoFinal()">
+                  <option value="SP" selected>São Paulo (SP) — Alíquota 4,0%</option>
+                  <option value="RJ">Rio de Janeiro (RJ) — Alíquota 4,0%</option>
+                  <option value="MG">Minas Gerais (MG) — Alíquota 4,0%</option>
+                  <option value="PR">Paraná (PR) — Alíquota 3,5%</option>
+                  <option value="RS">Rio Grande do Sul (RS) — Alíquota 3,0%</option>
+                  <option value="SC">Santa Catarina (SC) — Alíquota 2,0%</option>
+                  <option value="ES">Espírito Santo (ES) — Alíquota 2,0%</option>
+                  <option value="GO">Goiás (GO) — Alíquota 3,75%</option>
+                  <option value="DF">Distrito Federal (DF) — Alíquota 3,5%</option>
+                  <option value="BA">Bahia (BA) — Alíquota 2,5%</option>
+                  <option value="PE">Pernambuco (PE) — Alíquota 2,4%</option>
+                  <option value="CE">Ceará (CE) — Alíquota 3,0%</option>
+                  <option value="MT">Mato Grosso (MT) — Alíquota 3,0%</option>
+                  <option value="MS">Mato Grosso do Sul (MS) — Alíquota 3,0%</option>
+                  <option value="AM">Amazonas (AM) — Alíquota 3,0%</option>
+                  <option value="PA">Pará (PA) — Alíquota 2,5%</option>
+                  <option value="MA">Maranhão (MA) — Alíquota 2,5%</option>
+                  <option value="PB">Paraíba (PB) — Alíquota 2,5%</option>
+                  <option value="RN">Rio Grande do Norte (RN) — Alíquota 3,0%</option>
+                  <option value="AL">Alagoas (AL) — Alíquota 3,0%</option>
+                  <option value="PI">Piauí (PI) — Alíquota 2,5%</option>
+                  <option value="SE">Sergipe (SE) — Alíquota 2,5%</option>
+                  <option value="RO">Rondônia (RO) — Alíquota 2,5%</option>
+                  <option value="TO">Tocantins (TO) — Alíquota 2,0%</option>
+                  <option value="AC">Acre (AC) — Alíquota 2,0%</option>
+                  <option value="AP">Amapá (AP) — Alíquota 3,0%</option>
+                  <option value="RR">Roraima (RR) — Alíquota 3,0%</option>
+                </select>
+              </div>
+
+              <!-- Atahos Rápidos para Testar Modelos -->
+              <div style="margin-top:16px;">
+                <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;">Modelos Populares Rápidos</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button class="quick-pill" onclick="carregarModeloAtalho('59', '9150')">VW Nivus</button>
+                  <button class="quick-pill" onclick="carregarModeloAtalho('56', '8816')">Toyota Corolla</button>
+                  <button class="quick-pill" onclick="carregarModeloAtalho('21', '9404')">Fiat Strada</button>
+                  <button class="quick-pill" onclick="carregarModeloAtalho('23', '9045')">Chevrolet Onix</button>
+                  <button class="quick-pill" onclick="carregarModeloAtalho('25', '8281')">Honda Civic</button>
+                  <button class="quick-pill" onclick="carregarModeloAtalho('29', '7742')">Jeep Compass</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Painel de Resultado Detalhado -->
+            <div id="resultadoCotacaoBox" class="card" style="padding:24px;">
+              <div style="text-align:center;padding:40px 20px;color:var(--muted);">
+                <i data-lucide="loader" style="width:36px;height:36px;display:inline-block;animation:spin 1.5s linear infinite;"></i>
+                <div style="margin-top:12px;font-weight:700;">Carregando cotação oficial da FIPE...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ABA 2: BUSCA RÁPIDA UNIVERSAL -->
+        <div id="tab-busca" class="tab-pane" style="display:none;">
+          <div class="card" style="padding:24px;margin-bottom:20px;">
+            <h3 style="margin:0 0 12px 0;">Busca Universal FIPE (Nome, Modelo ou Código)</h3>
+            <div style="display:flex;gap:10px;">
+              <input type="text" id="inputBuscaUniversal" class="form-input" style="flex:1;" placeholder="Digite o modelo (ex: Civic, Corolla, Hilux, Nivus, Onix, CG 160) ou Código FIPE..." onkeyup="if(event.key==='Enter') executarBuscaUniversal()" />
+              <button class="btn btn-primary" onclick="executarBuscaUniversal()"><i data-lucide="search"></i> Buscar</button>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+              <span style="font-size:12px;color:var(--muted);align-self:center;">Exemplos rápidos:</span>
+              <button class="quick-pill" onclick="buscarTexto('Civic')">Civic</button>
+              <button class="quick-pill" onclick="buscarTexto('Polo')">Polo</button>
+              <button class="quick-pill" onclick="buscarTexto('Hilux')">Hilux</button>
+              <button class="quick-pill" onclick="buscarTexto('Dolphin')">Dolphin EV</button>
+              <button class="quick-pill" onclick="buscarTexto('005340-6')">005340-6</button>
+            </div>
+          </div>
+
+          <div id="buscaResultadosContainer" class="card" style="padding:24px;">
+            <div style="color:var(--muted);text-align:center;padding:24px;">
+              Digite um termo acima para pesquisar em tempo real em todas as marcas e modelos.
+            </div>
+          </div>
+        </div>
+
+        <!-- ABA 3: CONSULTA POR PLACA & DETRAN -->
+        <div id="tab-placa" class="tab-pane" style="display:none;">
+          <div class="card" style="padding:24px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <h3 style="margin:0;">Consulta por Placa Veicular (Mercosul &amp; Cinza Antiga)</h3>
+              <span class="fipe-tag blue">Denatran ISO</span>
+            </div>
+            <p style="color:var(--muted);font-size:13.5px;margin-top:0;">
+              Valida o padrão da placa, identifica o Estado Federativo de emplacamento através das faixas oficiais do Denatran e conecta à precificação FIPE.
+            </p>
+
+            <div style="display:flex;gap:10px;max-width:550px;margin-bottom:14px;">
+              <input type="text" id="inputPlaca" class="form-input" value="BRA2E19" style="font-family:var(--font-mono);font-size:18px;text-transform:uppercase;font-weight:700;letter-spacing:1px;" placeholder="Ex: BRA2E19 ou ABC1234" maxlength="8" />
+              <button class="btn btn-primary" onclick="consultarPlaca()"><i data-lucide="tag"></i> Consultar</button>
+            </div>
+
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+              <span style="font-size:12px;color:var(--muted);align-self:center;">Placas de teste homologadas:</span>
+              <button class="quick-pill" onclick="setPlaca('BRA2E19')">BRA2E19 (VW Nivus - PR)</button>
+              <button class="quick-pill" onclick="setPlaca('RIO2A18')">RIO2A18 (Polo - RJ)</button>
+              <button class="quick-pill" onclick="setPlaca('SPK9F42')">SPK9F42 (Strada - SP)</button>
+              <button class="quick-pill" onclick="setPlaca('ABC1234')">ABC1234 (Onix - Cinza PR)</button>
+              <button class="quick-pill" onclick="setPlaca('XYZ9999')">XYZ9999 (Corolla Hybrid)</button>
+              <button class="quick-pill" onclick="setPlaca('MOT1A60')">MOT1A60 (CG 160 Titan)</button>
+              <button class="quick-pill" onclick="setPlaca('SCA9R45')">SCA9R45 (Scania R 450)</button>
+            </div>
+
+            <div id="placaResultadoBox"></div>
+          </div>
+        </div>
+
+        <!-- ABA 4: DECODIFICADOR CHASSI VIN (ISO 3779) -->
+        <div id="tab-chassi" class="tab-pane" style="display:none;">
+          <div class="card" style="padding:24px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <h3 style="margin:0;">Decodificador e Validador de Chassi VIN (ISO 3779 / SAE J853)</h3>
+              <span class="fipe-tag emerald">Módulo 11 NHTSA</span>
+            </div>
+            <p style="color:var(--muted);font-size:13.5px;margin-top:0;">
+              Analisa a sequência de 17 caracteres do número de identificação veicular (VIN): WMI (Fabricante e País), VDS (Descritor de Engenharia), Dígito Verificador de Segurança e VIS (Ano Modelo e Planta Fabril).
+            </p>
+
+            <div style="display:flex;gap:10px;max-width:650px;margin-bottom:14px;">
+              <input type="text" id="inputVin" class="form-input" value="9BWCA45U1FP012345" style="font-family:var(--font-mono);font-size:16px;text-transform:uppercase;font-weight:700;letter-spacing:1px;" placeholder="Digite o VIN de 17 dígitos..." maxlength="17" />
+              <button class="btn btn-primary" onclick="decodificarVin()"><i data-lucide="check"></i> Decodificar</button>
+            </div>
+
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;">
+              <span style="font-size:12px;color:var(--muted);align-self:center;">Casos de teste VIN:</span>
+              <button class="quick-pill" onclick="setVin('9BWCA45U1FP012345')">VW Brasil (9BW)</button>
+              <button class="quick-pill" onclick="setVin('9BGRD48U1SP123456')">Chevrolet GM (9BG)</button>
+              <button class="quick-pill" onclick="setVin('9BRBD48E8P0123456')">Toyota Brasil (9BR)</button>
+              <button class="quick-pill" onclick="setVin('1HGCV1F32LA123456')">Honda USA (1HG)</button>
+              <button class="quick-pill" onclick="setVin('WBA53AY07M0123456')">BMW Alemanha (WBA)</button>
+            </div>
+
+            <div id="vinResultadoBox"></div>
+          </div>
+        </div>
+
+        <!-- ABA 5: TABELA IPVA 27 UFS -->
+        <div id="tab-ipva" class="tab-pane" style="display:none;">
+          <div class="card" style="padding:24px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <h3 style="margin:0;">Matriz Oficial de Alíquotas de IPVA nas 27 Unidades Federativas</h3>
+              <span class="fipe-tag amber">Exercício 2026/2027</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:13.5px;" id="tabelaIpvaUfs">
+                <thead>
+                  <tr style="background:var(--paper-elevated);color:var(--muted);text-align:left;">
+                    <th style="padding:10px 14px;border-bottom:1px solid var(--line);">UF</th>
+                    <th style="padding:10px 14px;border-bottom:1px solid var(--line);">Estado</th>
+                    <th style="padding:10px 14px;border-bottom:1px solid var(--line);">Carros de Passeio</th>
+                    <th style="padding:10px 14px;border-bottom:1px solid var(--line);">Motos / Triciclos</th>
+                    <th style="padding:10px 14px;border-bottom:1px solid var(--line);">Caminhões / Ônibus</th>
+                    <th style="padding:10px 14px;border-bottom:1px solid var(--line);">Desconto Cota Única</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyIpva"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ABA 6: SIMULADOR TCO & DEPRECIAÇÃO -->
+        <div id="tab-tco" class="tab-pane" style="display:none;">
+          <div class="card" style="padding:24px;">
+            <h3 style="margin:0 0 12px 0;">Calculadora de Custo Total de Propriedade (TCO) &amp; Depreciação</h3>
+            <p style="color:var(--muted);font-size:13.5px;margin-top:0;">
+              O TCO anual projeta o gasto real de manter um veículo no Brasil: IPVA estadual, seguro obrigatório e compreensivo, revisões periódicas recomendadas pela montadora e a curva de depreciação de mercado da FIPE em 12 meses.
+            </p>
+            <div id="tcoSimuladorBox"></div>
+          </div>
+        </div>
+
+        <!-- ABA 7: GERADOR DE CARD VETORIAL SVG -->
+        <div id="tab-cardsvg" class="tab-pane" style="display:none;">
+          <div class="card" style="padding:24px;">
+            <h3 style="margin:0 0 12px 0;">Card Vetorial SVG Oficial de Cotação FIPE</h3>
+            <p style="color:var(--muted);font-size:13.5px;margin-top:0;">
+              Renderizado instantaneamente pelo Worker Anycast em formato SVG vetorial nítido para integração em marketplaces, laudos de vistoria e dashboards veiculares.
+            </p>
+            <div style="display:flex;gap:12px;margin-bottom:18px;">
+              <button class="btn btn-secondary btn-sm" onclick="copiarUrlSvg()"><i data-lucide="copy"></i> Copiar URL da Imagem SVG</button>
+              <button class="btn btn-secondary btn-sm" onclick="abrirSvgNovaAba()"><i data-lucide="external-link"></i> Abrir SVG em Tela Cheia</button>
+            </div>
+            <div style="background:#030712;padding:24px;border-radius:12px;border:1px solid var(--line);text-align:center;">
+              <img id="fipeCardSvgImg" src="/api/fipe/card/005340-6.svg?uf=SP" style="max-width:100%;height:auto;border-radius:12px;" alt="Card FIPE SVG" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ABA 8: SANDBOX & TERMINAL SPLIT-SCREEN -->
+        <div id="tab-sandbox" class="tab-pane" style="display:none;">
+          <div class="terminal-window">
+            <div class="terminal-topbar">
+              <div class="terminal-dots">
+                <div class="terminal-dot red"></div>
+                <div class="terminal-dot yellow"></div>
+                <div class="terminal-dot green"></div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-secondary btn-xs" id="tabSnippetCurl" onclick="setSnippetLang('curl')">cURL</button>
+                <button class="btn btn-secondary btn-xs" id="tabSnippetNode" onclick="setSnippetLang('node')">Node.js</button>
+                <button class="btn btn-secondary btn-xs" id="tabSnippetPython" onclick="setSnippetLang('python')">Python</button>
+                <button class="btn btn-secondary btn-xs" id="tabSnippetPhp" onclick="setSnippetLang('php')">PHP</button>
+                <button class="btn btn-secondary btn-xs" id="tabSnippetCsharp" onclick="setSnippetLang('csharp')">C#</button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid rgba(255,255,255,0.08);">
+              <!-- Código de Exemplo -->
+              <div style="padding:16px;background:#030712;border-right:1px solid rgba(255,255,255,0.08);overflow-x:auto;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                  <span style="font-size:11px;color:var(--muted);font-weight:700;">SNIPPET DE INTEGRAÇÃO</span>
+                  <button class="btn btn-secondary btn-xs" onclick="copiarSnippet()"><i data-lucide="copy"></i> Copiar</button>
+                </div>
+                <pre id="snippetCode" style="margin:0;font-family:var(--font-mono);font-size:12px;color:#a3e635;line-height:1.5;"></pre>
+              </div>
+              <!-- Resposta JSON Ao Vivo -->
+              <div style="padding:16px;background:#030712;overflow-x:auto;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                  <span style="font-size:11px;color:var(--muted);font-weight:700;">PAYLOAD JSON RETORNADO</span>
+                  <button class="btn btn-secondary btn-xs" onclick="executarSnippetSandbox()"><i data-lucide="play"></i> Executar</button>
+                </div>
+                <pre id="sandboxJsonOutput" style="margin:0;font-family:var(--font-mono);font-size:12px;color:#38bdf8;line-height:1.4;max-height:450px;overflow-y:auto;"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ABA 9: CATÁLOGO SOBERANO (42 TOP VEÍCULOS) -->
+        <div id="tab-catalogo" class="tab-pane" style="display:none;">
+          <div class="card" style="padding:24px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <h3 style="margin:0;">Frota Soberana Homologada em Memória (&lt;1ms Edge Anycast)</h3>
+              <span class="fipe-tag mint" id="catalogoTotalBadge">42 Veículos</span>
+            </div>
+            <div id="gridCatalogo" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:16px;"></div>
+          </div>
+        </div>
+
       </div>
     </div>
-  </header>
-
-  <main class="ponte-container">
-    <div class="ponte-hero">
-      <div class="ponte-badges-bar">
-        <span class="ponte-badge mint">● Carros, Motos &amp; Caminhões</span>
-        <span class="ponte-badge blue">📉 Série Histórica &amp; Depreciação</span>
-        <span class="ponte-badge amber">🚗 Cruzamento por Placa + IPVA</span>
-      </div>
-      <h1>Tabela FIPE &amp; Avaliação Veicular Pro</h1>
-      <p>Consulte o preço médio oficial da Fundação Instituto de Pesquisas Econômicas (FIPE) pelo código FIPE ou diretamente pela placa Mercosul, com cálculo automático de IPVA por UF.</p>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:20px;align-items:start;">
-      <div class="ponte-card">
-        <div class="ponte-card-title"><h3>Avaliador FIPE &amp; IPVA</h3></div>
-        <div style="display:flex;gap:8px;margin-bottom:12px;">
-          <input type="text" id="fipeInput" class="ponte-input" value="005340-6" style="flex:1;font-family:var(--font-mono);" placeholder="Código FIPE (ex: 005340-6) ou Placa (BRA2E19)" />
-          <button class="ponte-btn ponte-btn-primary" onclick="consultar()">Avaliar</button>
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
-          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('005340-6')">VW Nivus Highline</button>
-          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('002111-3')">Corolla Altis Hybrid</button>
-          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('811145-6')">Honda CG 160 Titan</button>
-          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('509123-1')">Scania R 450</button>
-          <button class="ponte-btn ponte-btn-secondary ponte-btn-sm" onclick="setVal('BRA2E19')">Por Placa: BRA2E19</button>
-        </div>
-        <div id="fipeCardBox"></div>
-      </div>
-
-      <div class="ponte-card">
-        <div class="ponte-card-title"><h3>Payload JSON Retornado</h3></div>
-        <pre id="jsonOutput" style="background:#030712;padding:14px;border-radius:8px;color:#a5f3fc;font-family:var(--font-mono);font-size:12px;max-height:420px;overflow-y:auto;white-space:pre-wrap;"></pre>
-      </div>
-    </div>
-  </main>
+  </div>
 
   <script type="module">
-    import { FipePro } from './fipe-pro.js';
+    import { FipePro } from './fipe-pro.js?v=3.5.0';
 
-    window.setVal = function(v) {
-      document.getElementById('fipeInput').value = v;
-      window.consultar();
+    let estadoApp = {
+      tipo: 'carros',
+      marcas: [],
+      marcaAtual: null,
+      modelos: [],
+      modeloAtual: null,
+      anos: [],
+      anoAtual: null,
+      cotacaoAtual: null,
+      ufAtual: 'SP',
+      snippetLang: 'curl'
     };
 
-    window.consultar = function() {
-      const val = document.getElementById('fipeInput').value.trim();
-      const isPlaca = /^[A-Za-z]{3}/.test(val);
-      const res = isPlaca ? FipePro.consultarFipePorPlaca(val) : FipePro.consultarPorCodigoFipe(val);
-      document.getElementById('jsonOutput').textContent = JSON.stringify(res, null, 2);
+    window.switchTab = function(tabId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.primary-nav .nav-link').forEach(el => el.classList.remove('is-active'));
+      
+      const target = document.getElementById('tab-' + tabId);
+      if (target) target.style.display = 'block';
 
-      const d = res.avaliacaoFipe || res;
-      document.getElementById('fipeCardBox').innerHTML = `
-        <div style="background:var(--paper-elevated);padding:16px;border-radius:10px;border:1px solid var(--line);">
-          <div style="font-size:12px;color:var(--muted);">${d.marca} • Código FIPE ${d.codigoFipe}</div>
-          <div style="font-size:16px;font-weight:800;color:var(--ink);margin:4px 0;">${d.modelo} (${d.anoModelo})</div>
-          <div style="font-size:24px;font-weight:900;color:var(--mint);font-family:var(--font-mono);margin:8px 0;">${d.precoFormatado}</div>
-          <div style="font-size:12px;color:var(--ink);">IPVA Estimado (${d.estimativaIpva.uf}): <strong>R$ ${d.estimativaIpva.valorAnualEstimado.toLocaleString('pt-BR')}</strong> • Depreciação 12m: <strong>${d.depreciacaoAnualPct}%</strong></div>
+      const navBtn = document.querySelector(`.primary-nav .nav-link[data-tab="${tabId}"]`);
+      if (navBtn) navBtn.classList.add('is-active');
+
+      if (tabId === 'ipva') renderizarTabelaIpva();
+      if (tabId === 'catalogo') renderizarCatalogo();
+      if (tabId === 'sandbox') atualizarSnippetSandbox();
+    };
+
+    window.selecionarTipo = async function(tipo) {
+      estadoApp.tipo = tipo;
+      document.getElementById('btnTipoCarros').className = tipo === 'carros' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+      document.getElementById('btnTipoMotos').className = tipo === 'motos' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+      document.getElementById('btnTipoCaminhoes').className = tipo === 'caminhoes' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+
+      document.getElementById('marcaCount').textContent = 'Carregando...';
+      const selectMarca = document.getElementById('selectMarca');
+      selectMarca.innerHTML = '<option value="">Carregando marcas oficiais...</option>';
+
+      const marcas = await FipePro.buscarMarcasFipeLive(tipo);
+      estadoApp.marcas = marcas;
+      document.getElementById('marcaCount').textContent = `${marcas.length} disponíveis`;
+
+      selectMarca.innerHTML = '<option value="">Selecione uma marca...</option>' + marcas.map(m => `<option value="${m.codigo}">${m.nome}</option>`).join('');
+
+      // Reseta modelos e anos
+      document.getElementById('selectModelo').innerHTML = '<option value="">Primeiro selecione a marca acima...</option>';
+      document.getElementById('selectModelo').disabled = true;
+      document.getElementById('selectAno').innerHTML = '<option value="">Aguardando seleção do modelo...</option>';
+      document.getElementById('selectAno').disabled = true;
+
+      // Se for carros, seleciona VW por padrão
+      if (tipo === 'carros') {
+        const vw = marcas.find(m => m.nome.toLowerCase().includes('volkswagen') || m.codigo === '59');
+        if (vw) {
+          selectMarca.value = vw.codigo;
+          await aoMudarMarca();
+        }
+      }
+    };
+
+    window.aoMudarMarca = async function() {
+      const marcaId = document.getElementById('selectMarca').value;
+      if (!marcaId) return;
+      estadoApp.marcaAtual = marcaId;
+
+      const selModelo = document.getElementById('selectModelo');
+      selModelo.disabled = false;
+      selModelo.innerHTML = '<option value="">Carregando modelos da FIPE...</option>';
+      document.getElementById('modeloCount').textContent = 'Consultando...';
+
+      const modelos = await FipePro.buscarModelosFipeLive(estadoApp.tipo, marcaId);
+      estadoApp.modelos = modelos;
+      document.getElementById('modeloCount').textContent = `${modelos.length} modelos`;
+
+      selModelo.innerHTML = '<option value="">Selecione um modelo...</option>' + modelos.map(m => `<option value="${m.codigo}">${m.nome}</option>`).join('');
+
+      // Seleciona o primeiro modelo por padrão
+      if (modelos.length > 0) {
+        // Tenta achar Nivus ou Corolla ou pega o primeiro
+        const pred = modelos.find(m => m.nome.toLowerCase().includes('nivus')) || modelos[0];
+        selModelo.value = pred.codigo;
+        await aoMudarModelo();
+      }
+    };
+
+    window.aoMudarModelo = async function() {
+      const modeloId = document.getElementById('selectModelo').value;
+      if (!modeloId) return;
+      estadoApp.modeloAtual = modeloId;
+
+      const selAno = document.getElementById('selectAno');
+      selAno.disabled = false;
+      selAno.innerHTML = '<option value="">Carregando anos...</option>';
+
+      const anos = await FipePro.buscarAnosFipeLive(estadoApp.tipo, estadoApp.marcaAtual, modeloId);
+      estadoApp.anos = anos;
+      selAno.innerHTML = anos.map(a => `<option value="${a.codigo}">${a.nome}</option>`).join('');
+
+      if (anos.length > 0) {
+        selAno.value = anos[0].codigo;
+        await consultarPrecoFinal();
+      }
+    };
+
+    window.aoMudarAno = async function() {
+      await consultarPrecoFinal();
+    };
+
+    window.consultarPrecoFinal = async function() {
+      const marcaId = document.getElementById('selectMarca').value;
+      const modeloId = document.getElementById('selectModelo').value;
+      const anoId = document.getElementById('selectAno').value;
+      const uf = document.getElementById('selectUf').value;
+      estadoApp.ufAtual = uf;
+
+      if (!marcaId || !modeloId || !anoId) return;
+
+      const res = await FipePro.consultarPrecoFipeLive(estadoApp.tipo, marcaId, modeloId, anoId, uf);
+      estadoApp.cotacaoAtual = res;
+
+      renderizarCotacaoCard(res);
+      atualizarSnippetSandbox();
+    };
+
+    function renderizarCotacaoCard(c) {
+      if (!c || !c.ok) {
+        document.getElementById('resultadoCotacaoBox').innerHTML = `
+          <div style="color:var(--coral);padding:20px;text-align:center;">
+            <strong>Erro na Cotação:</strong> ${c?.mensagem || 'Veículo não encontrado.'}
+          </div>
+        `;
+        return;
+      }
+
+      const depCor = c.depreciacaoAnualPct <= 0 ? '#10b981' : '#f59e0b';
+      const ipva = c.estimativaIpva;
+      const tco = c.custoTotalPropriedadeTCO;
+      const logoSvg = FipePro.obterLogoMarcaSvg(c.marca);
+      const ilustracaoSvg = FipePro.obterIlustracaoVeiculo(c.modelo, c.tipo);
+
+      document.getElementById('resultadoCotacaoBox').innerHTML = `
+        <div>
+          <!-- Ilustração e Silhueta Vetorial do Veículo -->
+          <div style="margin-bottom:16px;border-radius:12px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow-sm);">
+            ${ilustracaoSvg}
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span class="fipe-tag mint">${c.mesReferencia || 'Novembro de 2026'}</span>
+            <span style="font-size:12px;color:var(--muted);font-family:var(--font-mono);">Código FIPE: <strong style="color:var(--ink);">${c.codigoFipe}</strong></span>
+          </div>
+
+          <!-- Cabeçalho com Logo da Montadora -->
+          <div style="display:flex;align-items:center;gap:14px;margin:10px 0 14px 0;">
+            <div style="flex-shrink:0;">${logoSvg}</div>
+            <div>
+              <h2 style="font-size:20px;font-weight:900;margin:0;letter-spacing:-0.5px;color:var(--ink);">${c.marca} ${c.modelo}</h2>
+              <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">
+                Ano Modelo: <strong style="color:var(--ink);">${c.anoModelo}</strong> • Combustível: <strong style="color:var(--ink);">${c.combustivel}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:var(--paper-elevated);border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px;margin-bottom:18px;">
+            <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Preço Médio FIPE</div>
+            <div class="fipe-price-highlight" style="margin:4px 0 6px 0;">${c.precoFormatado}</div>
+            <div style="font-size:12px;color:var(--muted);">
+              Variação Anual Projetada: <strong style="color:${depCor};">${c.depreciacaoAnualPct}%</strong>
+            </div>
+          </div>
+
+          <!-- Bloco Fiscal IPVA -->
+          <div style="border-top:1px solid var(--line);padding-top:16px;margin-top:16px;">
+            <div style="font-size:13px;font-weight:800;color:var(--ink);margin-bottom:10px;">
+              🏛️ Estimativa de IPVA Oficial (${ipva.uf} - ${ipva.estadoNome})
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+              <div style="background:var(--paper-elevated);padding:10px;border-radius:8px;border:1px solid var(--line);">
+                <div style="font-size:11px;color:var(--muted);">Alíquota Estadual</div>
+                <div style="font-size:16px;font-weight:800;color:var(--ink);font-family:var(--font-mono);">${ipva.aliquotaPct}</div>
+              </div>
+              <div style="background:var(--paper-elevated);padding:10px;border-radius:8px;border:1px solid var(--line);">
+                <div style="font-size:11px;color:var(--muted);">Valor Anual Total</div>
+                <div style="font-size:16px;font-weight:800;color:var(--mint);font-family:var(--font-mono);">R$ ${ipva.valorAnualEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:var(--muted);">
+              Cota Única (Desconto de ${ipva.descontoCotaUnica}): <strong style="color:var(--emerald);">R$ ${ipva.valorCotaUnicaComDesconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong><br>
+              ${ipva.parcelamentoMaximo}
+            </div>
+          </div>
+
+          <!-- TCO Anual -->
+          <div style="border-top:1px solid var(--line);padding-top:16px;margin-top:16px;">
+            <div style="font-size:13px;font-weight:800;color:var(--ink);margin-bottom:6px;">
+              📊 Custo Total de Propriedade (TCO 12 Meses)
+            </div>
+            <div class="tco-breakdown">
+              <div class="tco-item">
+                <div class="tco-val">R$ ${tco.ipvaEstimado.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+                <div class="tco-lbl">IPVA</div>
+              </div>
+              <div class="tco-item">
+                <div class="tco-val">R$ ${tco.seguroMedioEstimado.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+                <div class="tco-lbl">Seguro Médio</div>
+              </div>
+              <div class="tco-item">
+                <div class="tco-val">R$ ${tco.revisoesEManutencaoEstimada.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+                <div class="tco-lbl">Manutenção</div>
+              </div>
+              <div class="tco-item">
+                <div class="tco-val" style="color:var(--coral);">R$ ${tco.totalCustoAnual.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</div>
+                <div class="tco-lbl">Custo Anual Total</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:18px;display:flex;gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="verCardSvg('${c.codigoFipe}')"><i data-lucide="image"></i> Ver Card SVG</button>
+            <button class="btn btn-secondary btn-sm" onclick="testarNoSandbox('${c.codigoFipe}')"><i data-lucide="terminal"></i> Testar no Terminal</button>
+          </div>
+        </div>
+      `;
+
+      // Atualiza imagem do Card SVG
+      const imgSvg = document.getElementById('fipeCardSvgImg');
+      if (imgSvg && c.codigoFipe) {
+        imgSvg.src = `/api/fipe/card/${c.codigoFipe}.svg?uf=${ipva.uf}`;
+      }
+    }
+
+    window.carregarModeloAtalho = async function(marcaId, modeloId) {
+      document.getElementById('selectMarca').value = marcaId;
+      await aoMudarMarca();
+      document.getElementById('selectModelo').value = modeloId;
+      await aoMudarModelo();
+    };
+
+    window.executarBuscaUniversal = async function() {
+      const q = document.getElementById('inputBuscaUniversal').value.trim();
+      if (!q) return;
+      buscarTexto(q);
+    };
+
+    window.buscarTexto = async function(termo) {
+      document.getElementById('inputBuscaUniversal').value = termo;
+      const box = document.getElementById('buscaResultadosContainer');
+      box.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Pesquisando na FIPE...</div>';
+
+      const res = await FipePro.buscarFipePorTextoLive(termo, 'carros');
+      if (!res || res.length === 0) {
+        box.innerHTML = '<div style="text-align:center;padding:24px;color:var(--coral);">Nenhum veículo encontrado para este termo.</div>';
+        return;
+      }
+
+      box.innerHTML = `
+        <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;">${res.length} Resultados Encontrados</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px;">
+          ${res.map(item => `
+            <div class="card" style="padding:14px;background:var(--paper-elevated);cursor:pointer;" onclick="selecionarItemBusca('${item.marcaId || ''}', '${item.modeloId || ''}', '${item.codigoFipe || ''}')">
+              <div style="font-size:11px;color:var(--muted);font-weight:700;">${item.marca || 'FIPE'}</div>
+              <div style="font-size:14px;font-weight:800;color:var(--ink);margin:4px 0;">${item.modelo}</div>
+              <div style="font-size:12px;color:var(--mint);font-weight:700;">${item.precoFormatado || 'Clique para cotação'}</div>
+            </div>
+          `).join('')}
         </div>
       `;
     };
 
-    window.consultar();
+    window.selecionarItemBusca = async function(marcaId, modeloId, codigoFipe) {
+      switchTab('fipe-live');
+      if (marcaId && modeloId) {
+        await carregarModeloAtalho(marcaId, modeloId);
+      } else if (codigoFipe) {
+        const c = FipePro.consultarPorCodigoFipe(codigoFipe, 2025, 'SP');
+        renderizarCotacaoCard(c);
+      }
+    };
+
+    window.setPlaca = function(p) {
+      document.getElementById('inputPlaca').value = p;
+      consultarPlaca();
+    };
+
+    window.consultarPlaca = function() {
+      const placa = document.getElementById('inputPlaca').value.trim();
+      const res = FipePro.consultarFipePorPlaca(placa);
+      const box = document.getElementById('placaResultadoBox');
+
+      if (!res.ok) {
+        box.innerHTML = `<div style="color:var(--coral);padding:14px;background:var(--paper-elevated);border-radius:8px;">${res.mensagem}</div>`;
+        return;
+      }
+
+      const uf = res.origemRegistro;
+      const aval = res.avaliacaoFipe;
+
+      box.innerHTML = `
+        <div style="background:var(--paper-elevated);border:1px solid var(--line);border-radius:var(--radius-lg);padding:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div>
+              <span class="fipe-tag mint" style="font-size:13px;letter-spacing:1px;font-family:var(--font-mono);">${res.placa}</span>
+              <span class="fipe-tag blue" style="margin-left:6px;">Padrão ${res.padraoPlaca}</span>
+            </div>
+            <span style="font-size:13px;color:var(--muted);">Origem Denatran: <strong style="color:var(--mint);">${uf.uf} (${uf.estadoNome})</strong></span>
+          </div>
+
+          ${aval ? `
+            <div style="border-top:1px solid var(--line);padding-top:14px;margin-top:14px;">
+              <div style="font-size:12px;color:var(--muted);font-weight:700;">VEÍCULO VINCULADO NO CATÁLOGO DE REFERÊNCIA</div>
+              <h3 style="font-size:18px;font-weight:900;margin:6px 0;">${aval.marca} ${aval.modelo}</h3>
+              <div class="fipe-price-highlight" style="font-size:26px;">${aval.precoFormatado}</div>
+              <div style="font-size:12.5px;color:var(--muted);margin-top:8px;">
+                Código FIPE: <strong>${aval.codigoFipe}</strong> • Ano Modelo: <strong>${aval.anoModelo}</strong><br>
+                IPVA Estimado em ${aval.estimativaIpva.uf}: <strong style="color:var(--mint);">R$ ${aval.estimativaIpva.valorAnualEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+              </div>
+            </div>
+          ` : `
+            <div style="border-top:1px solid var(--line);padding-top:14px;margin-top:14px;">
+              <div style="font-size:13px;color:var(--muted);line-height:1.5;">
+                ${res.aviso}
+              </div>
+              <div style="margin-top:14px;">
+                <button class="btn btn-secondary btn-sm" onclick="switchTab('fipe-live')">
+                  <i data-lucide="arrow-right"></i> Selecionar Veículo na Tabela FIPE Oficial
+                </button>
+              </div>
+            </div>
+          `}
+        </div>
+      `;
+    };
+
+    window.setVin = function(v) {
+      document.getElementById('inputVin').value = v;
+      decodificarVin();
+    };
+
+    window.decodificarVin = function() {
+      const vin = document.getElementById('inputVin').value.trim();
+      const res = FipePro.decodificarChassiVin(vin);
+      const box = document.getElementById('vinResultadoBox');
+
+      if (!res.ok) {
+        box.innerHTML = `<div style="color:var(--coral);padding:14px;background:var(--paper-elevated);border-radius:8px;">${res.mensagem}</div>`;
+        return;
+      }
+
+      box.innerHTML = `
+        <div style="background:var(--paper-elevated);border:1px solid var(--line);border-radius:var(--radius-lg);padding:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <span class="fipe-tag emerald" style="font-size:13px;font-family:var(--font-mono);letter-spacing:1px;">${res.chassiVin}</span>
+            <span class="fipe-tag mint">ISO 3779 Válido</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;">
+            <div style="background:var(--paper);padding:12px;border-radius:8px;border:1px solid var(--line);">
+              <div style="font-size:11px;color:var(--muted);font-weight:700;">WMI (FABRICANTE)</div>
+              <div style="font-size:15px;font-weight:800;color:var(--ink);margin:3px 0;">${res.wmi.fabricante}</div>
+              <div style="font-size:12px;color:var(--muted);">País: ${res.wmi.paisOrigem} (${res.wmi.codigo})</div>
+            </div>
+
+            <div style="background:var(--paper);padding:12px;border-radius:8px;border:1px solid var(--line);">
+              <div style="font-size:11px;color:var(--muted);font-weight:700;">VIS (ANO MODELO)</div>
+              <div style="font-size:15px;font-weight:800;color:var(--mint);margin:3px 0;">${res.vis.anoModelo}</div>
+              <div style="font-size:12px;color:var(--muted);">Dígito Ano: ${res.vis.digitoAno} • Planta: ${res.vis.plantaFabricacao}</div>
+            </div>
+
+            <div style="background:var(--paper);padding:12px;border-radius:8px;border:1px solid var(--line);">
+              <div style="font-size:11px;color:var(--muted);font-weight:700;">DÍGITO VERIFICADOR</div>
+              <div style="font-size:15px;font-weight:800;color:var(--emerald);margin:3px 0;">Posição 9: ${res.digitoVerificador.posicao9}</div>
+              <div style="font-size:12px;color:var(--muted);">Check-Digit Módulo 11: ${res.digitoVerificador.valido ? 'OK' : 'Falha'}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    function renderizarTabelaIpva() {
+      const tbody = document.getElementById('tbodyIpva');
+      if (!tbody || tbody.children.length > 0) return;
+      const ufs = FipePro.ALIQUOTAS_IPVA_27_UFS;
+
+      tbody.innerHTML = Object.entries(ufs).map(([uf, d]) => `
+        <tr style="border-bottom:1px solid var(--line-light);">
+          <td style="padding:8px 14px;font-family:var(--font-mono);font-weight:700;color:var(--mint);">${uf}</td>
+          <td style="padding:8px 14px;font-weight:600;">${d.nome}</td>
+          <td style="padding:8px 14px;font-family:var(--font-mono);">${(d.aliqCarros * 100).toFixed(1)}%</td>
+          <td style="padding:8px 14px;font-family:var(--font-mono);">${(d.aliqMotos * 100).toFixed(1)}%</td>
+          <td style="padding:8px 14px;font-family:var(--font-mono);">${(d.aliqCaminhoes * 100).toFixed(1)}%</td>
+          <td style="padding:8px 14px;color:var(--emerald);font-weight:700;">${d.descontoCotaUnicaPct}%</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderizarCatalogo() {
+      const grid = document.getElementById('gridCatalogo');
+      if (!grid || grid.children.length > 0) return;
+      const veiculos = Object.values(FipePro.VEICULOS_FIPE_CATALOGO);
+
+      grid.innerHTML = veiculos.map(v => {
+        const logo = FipePro.obterLogoMarcaSvg(v.marca);
+        return `
+        <div class="card" style="padding:16px;background:var(--paper-elevated);cursor:pointer;transition:transform 0.2s, border-color 0.2s;" onclick="carregarVeiculoCatalogo('${v.codigoFipe}')">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:28px;height:28px;display:flex;align-items:center;">${logo}</div>
+              <span style="font-size:12px;font-weight:700;color:var(--ink);">${v.marca}</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted);">${v.codigoFipe}</span>
+          </div>
+          <div style="font-size:14px;font-weight:800;color:var(--ink);margin:6px 0;">${v.modelo}</div>
+          <div style="font-size:18px;font-weight:900;color:var(--mint);font-family:var(--font-mono);">${v.precoFormatado}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Ano: ${v.anoModelo} • ${v.combustivel}</div>
+        </div>
+      `;
+      }).join('');
+    }
+
+    window.carregarVeiculoCatalogo = function(cod) {
+      const c = FipePro.consultarPorCodigoFipe(cod, 2025, 'SP');
+      switchTab('fipe-live');
+      renderizarCotacaoCard(c);
+    };
+
+    window.verCardSvg = function(cod) {
+      switchTab('cardsvg');
+      document.getElementById('fipeCardSvgImg').src = `/api/fipe/card/${cod}.svg?uf=${estadoApp.ufAtual}`;
+    };
+
+    window.testarNoSandbox = function(cod) {
+      switchTab('sandbox');
+      atualizarSnippetSandbox(cod);
+    };
+
+    window.setSnippetLang = function(lang) {
+      estadoApp.snippetLang = lang;
+      ['curl', 'node', 'python', 'php', 'csharp'].forEach(l => {
+        const btn = document.getElementById('tabSnippet' + l.charAt(0).toUpperCase() + l.slice(1));
+        if (btn) btn.className = l === lang ? 'btn btn-primary btn-xs' : 'btn btn-secondary btn-xs';
+      });
+      atualizarSnippetSandbox();
+    };
+
+    function atualizarSnippetSandbox(codigoParam) {
+      const cod = codigoParam || estadoApp.cotacaoAtual?.codigoFipe || '005340-6';
+      const lang = estadoApp.snippetLang;
+      let snippet = '';
+
+      if (lang === 'curl') {
+        snippet = `# Consulta Direta FIPE Pro
+curl -s -X GET "https://fipe-pro.lukbras847.workers.dev/api/fipe/codigo/${cod}?uf=SP" \\
+  -H "Authorization: Bearer fipe_pro_live123"`;
+      } else if (lang === 'node') {
+        snippet = `// Node.js Fetch FIPE Pro
+const resp = await fetch('https://fipe-pro.lukbras847.workers.dev/api/fipe/codigo/${cod}?uf=SP', {
+  headers: { 'Authorization': 'Bearer fipe_pro_live123' }
+});
+const cotacao = await resp.json();
+console.log(cotacao.precoFormatado, cotacao.estimativaIpva);`;
+      } else if (lang === 'python') {
+        snippet = `# Python Requests FIPE Pro
+import requests
+
+url = "https://fipe-pro.lukbras847.workers.dev/api/fipe/codigo/${cod}?uf=SP"
+headers = {"Authorization": "Bearer fipe_pro_live123"}
+
+res = requests.get(url, headers=headers).json()
+print(f"{res['modelo']}: {res['precoFormatado']}")`;
+      } else if (lang === 'php') {
+        snippet = `<?php
+// PHP cURL FIPE Pro
+$ch = curl_init("https://fipe-pro.lukbras847.workers.dev/api/fipe/codigo/${cod}?uf=SP");
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer fipe_pro_live123']);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$res = json_decode(curl_exec($ch), true);
+echo $res['precoFormatado'];`;
+      } else if (lang === 'csharp') {
+        snippet = `// C# HttpClient FIPE Pro
+using var client = new HttpClient();
+client.DefaultRequestHeaders.Add("Authorization", "Bearer fipe_pro_live123");
+var json = await client.GetStringAsync("https://fipe-pro.lukbras847.workers.dev/api/fipe/codigo/${cod}?uf=SP");
+Console.WriteLine(json);`;
+      }
+
+      document.getElementById('snippetCode').textContent = snippet;
+      executarSnippetSandbox(cod);
+    }
+
+    window.executarSnippetSandbox = function(codigoParam) {
+      const cod = codigoParam || estadoApp.cotacaoAtual?.codigoFipe || '005340-6';
+      const c = FipePro.consultarPorCodigoFipe(cod, 2025, estadoApp.ufAtual);
+      document.getElementById('sandboxJsonOutput').textContent = JSON.stringify(c, null, 2);
+    };
+
+    window.copiarSnippet = function() {
+      const txt = document.getElementById('snippetCode').textContent;
+      navigator.clipboard.writeText(txt);
+      alert('Snippet copiado com sucesso!');
+    };
+
+    window.copiarUrlSvg = function() {
+      const src = document.getElementById('fipeCardSvgImg').src;
+      navigator.clipboard.writeText(src);
+      alert('URL da imagem SVG copiada com sucesso!');
+    };
+
+    window.abrirSvgNovaAba = function() {
+      const src = document.getElementById('fipeCardSvgImg').src;
+      window.open(src, '_blank');
+    };
+
+    // Inicialização da Aplicação
+    document.addEventListener('DOMContentLoaded', () => {
+      selecionarTipo('carros');
+      consultarPlaca();
+      decodificarVin();
+    });
   </script>
 </body>
 </html>
